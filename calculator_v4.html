@@ -1,1 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Calculator V4 Desktop Edition</title>
 
+<style>
+*{box-sizing:border-box;}
+body{
+    margin:0;
+    background:#0c0c0c;
+    font-family:Segoe UI,Arial;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+/* ===== APP ===== */
+.app{
+    width:410px;
+    background:#171717;
+    border-radius:36px;
+    padding:18px;
+    box-shadow:0 0 50px rgba(0,0,0,.7);
+}
+
+/* ===== DISPLAY ===== */
+.preview{
+    font-size:14px;
+    opacity:.6;
+    text-align:right;
+    min-height:18px;
+}
+
+.display{
+    background:#000;
+    border-radius:26px;
+    padding:18px;
+    text-align:right;
+    font-size:32px;
+    margin-top:6px;
+    min-height:70px;
+}
+
+/* ===== BUTTONS ===== */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+    margin-top:12px;
+}
+
+button{
+    border:none;
+    border-radius:22px;
+    padding:14px;
+    background:#2a2a2a;
+    color:#fff;
+    font-size:15px;
+    cursor:pointer;
+    transition:.15s;
+}
+button:hover{background:#3a3a3a;}
+button:active{transform:scale(.9);}
+.special{background:#444;}
+
+.topbar{
+    display:flex;
+    gap:8px;
+}
+.topbar button{flex:1;}
+
+.panel{
+    background:#101010;
+    border-radius:24px;
+    margin-top:10px;
+    padding:10px;
+    max-height:0;
+    overflow:hidden;
+    transition:.35s;
+}
+.panel.active{max-height:500px;}
+
+select,input{
+    width:100%;
+    margin-top:6px;
+    border:none;
+    border-radius:14px;
+    padding:8px;
+    background:#2c2c2c;
+    color:#fff;
+}
+
+.history{
+    max-height:120px;
+    overflow:auto;
+    font-size:13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="topbar">
+<button onclick="toggle('sci')">SCI</button>
+<button onclick="toggle('converter')">CONV</button>
+<button onclick="toggle('historyPanel')">HIST</button>
+<button onclick="toggleAngle()">RAD/DEG</button>
+</div>
+
+<div class="preview" id="preview"></div>
+<div class="display" id="display">0</div>
+
+<!-- ===== MAIN KEYS ===== -->
+<div class="grid">
+<button onclick="memClear()">MC</button>
+<button onclick="memRecall()">MR</button>
+<button onclick="memAdd()">M+</button>
+<button onclick="memSub()">M-</button>
+<button onclick="eng()">ENG</button>
+
+<button onclick="press('7')">7</button>
+<button onclick="press('8')">8</button>
+<button onclick="press('9')">9</button>
+<button class="special" onclick="press('/')">÷</button>
+<button onclick="pressFunc('sin')">sin</button>
+
+<button onclick="press('4')">4</button>
+<button onclick="press('5')">5</button>
+<button onclick="press('6')">6</button>
+<button class="special" onclick="press('*')">×</button>
+<button onclick="pressFunc('cos')">cos</button>
+
+<button onclick="press('1')">1</button>
+<button onclick="press('2')">2</button>
+<button onclick="press('3')">3</button>
+<button class="special" onclick="press('-')">−</button>
+<button onclick="pressFunc('tan')">tan</button>
+
+<button onclick="press('0')">0</button>
+<button onclick="press('.')">.</button>
+<button onclick="press('(')">(</button>
+<button onclick="press(')')">)</button>
+<button class="special" onclick="press('+')">+</button>
+
+<button onclick="clearDisplay()">AC</button>
+<button onclick="backspace()">⌫</button>
+<button onclick="press('Math.sqrt(')">√</button>
+<button onclick="press('Math.PI')">π</button>
+<button onclick="calculate()">=</button>
+</div>
+
+<!-- ===== SCI PANEL ===== -->
+<div id="sci" class="panel">
+<div class="grid">
+<button onclick="press('Math.log10(')">log</button>
+<button onclick="press('Math.log(')">ln</button>
+<button onclick="press('**')">^</button>
+<button onclick="press('Math.E')">e</button>
+<button onclick="press('1/')">1/x</button>
+</div>
+</div>
+
+<!-- ===== CONVERTER ===== -->
+<div id="converter" class="panel">
+<select id="type" onchange="updateUnits()">
+<option value="memory">Memory</option>
+<option value="area">Area</option>
+<option value="length">Length</option>
+</select>
+
+<input id="inputValue" placeholder="Enter value">
+<select id="fromUnit"></select>
+<select id="toUnit"></select>
+<button onclick="convert()">Convert</button>
+<div id="convResult"></div>
+</div>
+
+<!-- ===== HISTORY ===== -->
+<div id="historyPanel" class="panel">
+<div id="history" class="history"></div>
+</div>
+
+</div>
+
+<script>
+
+/* ===== STATE ===== */
+let display=document.getElementById("display");
+let preview=document.getElementById("preview");
+let expression="";
+let memory=0;
+let angleMode="RAD";
+const historyEl=document.getElementById("history");
+
+/* ===== INPUT ===== */
+function press(v){
+    expression+=v;
+    updateDisplay();
+}
+
+function pressFunc(fn){
+    if(angleMode==="DEG"){
+        expression+=`deg${fn}(`;
+    }else{
+        expression+=`Math.${fn}(`;
+    }
+    updateDisplay();
+}
+
+function updateDisplay(){
+    display.innerText=expression||"0";
+    preview.innerText=expression;
+}
+
+function clearDisplay(){
+    expression="";
+    updateDisplay();
+}
+
+function backspace(){
+    expression=expression.slice(0,-1);
+    updateDisplay();
+}
+
+/* ===== MEMORY ===== */
+function memClear(){memory=0;}
+function memRecall(){expression+=memory;updateDisplay();}
+function memAdd(){memory+=Number(display.innerText)||0;}
+function memSub(){memory-=Number(display.innerText)||0;}
+
+/* ===== ENG NOTATION ===== */
+function eng(){
+    let val=parseFloat(display.innerText);
+    if(!isNaN(val)){
+        let exp=Math.floor(Math.log10(Math.abs(val))/3)*3;
+        let res=val/Math.pow(10,exp);
+        display.innerText=res+"e"+exp;
+        expression=display.innerText;
+    }
+}
+
+/* ===== CALC ===== */
+function calculate(){
+    try{
+        let exp=expression
+        .replace(/degsin\(/g,"Math.sin((Math.PI/180)*")
+        .replace(/degcos\(/g,"Math.cos((Math.PI/180)*")
+        .replace(/degtan\(/g,"Math.tan((Math.PI/180)*");
+
+        let result=Function('"use strict";return ('+exp+')')();
+        historyEl.innerHTML+=`<div>${expression} = ${result}</div>`;
+        expression=result.toString();
+        updateDisplay();
+    }catch{
+        display.innerText="Error";
+        expression="";
+    }
+}
+
+/* ===== KEYBOARD ===== */
+document.addEventListener("keydown",e=>{
+    if("0123456789+-*/().".includes(e.key)) press(e.key);
+    if(e.key==="Enter") calculate();
+    if(e.key==="Backspace") backspace();
+});
+
+/* ===== PANELS ===== */
+function toggle(id){
+    document.getElementById(id).classList.toggle("active");
+}
+
+function toggleAngle(){
+    angleMode=angleMode==="RAD"?"DEG":"RAD";
+}
+
+/* ===== CONVERTER ===== */
+const units={
+memory:{B:1,KB:1024,MB:1024**2,GB:1024**3,TB:1024**4},
+length:{cm:1,inch:2.54,m:100,km:100000},
+area:{sqm:1,sqcm:0.0001,sqkm:1000000,acre:4046.86}
+};
+
+function updateUnits(){
+    let type=document.getElementById("type").value;
+    let from=document.getElementById("fromUnit");
+    let to=document.getElementById("toUnit");
+    from.innerHTML="";
+    to.innerHTML="";
+    Object.keys(units[type]).forEach(u=>{
+        from.innerHTML+=`<option>${u}</option>`;
+        to.innerHTML+=`<option>${u}</option>`;
+    });
+}
+updateUnits();
+
+function convert(){
+    let type=document.getElementById("type").value;
+    let val=parseFloat(document.getElementById("inputValue").value);
+    let from=document.getElementById("fromUnit").value;
+    let to=document.getElementById("toUnit").value;
+    if(isNaN(val)) return;
+    let base=val*units[type][from];
+    let result=base/units[type][to];
+    document.getElementById("convResult").innerText="Result: "+result;
+}
+
+</script>
+</body>
+</html>
